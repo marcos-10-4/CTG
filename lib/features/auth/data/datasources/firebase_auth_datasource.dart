@@ -114,19 +114,17 @@ class FirebaseAuthDatasource {
     }
     final doc = await ref.get();
 
-    // Refresh token to get custom claims (role)
+    // Role from custom claims (set by Cloud Functions) or Firestore fallback
     final idTokenResult = await user.getIdTokenResult(true);
     final claimRole = idTokenResult.claims?['role'] as String?;
+    final firestoreRole = data?['role'] as String?;
+    final roleStr = claimRole ?? firestoreRole ?? 'socio';
 
-    UserRole role;
-    switch (claimRole) {
-      case 'admin':
-        role = UserRole.admin;
-      case 'entrenador':
-        role = UserRole.entrenador;
-      default:
-        role = UserRole.socio;
-    }
+    final role = switch (roleStr) {
+      'admin' => UserRole.admin,
+      'entrenador' => UserRole.entrenador,
+      _ => UserRole.socio,
+    };
 
     final data = doc.data();
     return AppUser(
