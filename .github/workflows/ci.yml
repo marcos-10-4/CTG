@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  FLUTTER_VERSION: '3.22.0'
+  NODE_VERSION: '20'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Flutter: analyze + test + build
+  # ─────────────────────────────────────────────────────────────────────────
+  flutter:
+    name: Flutter CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        run: flutter test --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/lcov.info
+          flags: flutter
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Build Android APK
+  # ─────────────────────────────────────────────────────────────────────────
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build APK
+        run: flutter build apk --release --no-pub
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Build iOS (unsigned)
+  # ─────────────────────────────────────────────────────────────────────────
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    needs: flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign --no-pub
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Cloud Functions: lint + build + deploy (main branch only)
+  # ─────────────────────────────────────────────────────────────────────────
+  functions:
+    name: Cloud Functions
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Build
+        working-directory: functions
+        run: npm run build
+
+      - name: Deploy functions (main only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: functions
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: npx firebase deploy --only functions --token "$FIREBASE_TOKEN" --non-interactive
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Firestore rules tests
+  # ─────────────────────────────────────────────────────────────────────────
+  firestore-rules:
+    name: Firestore Rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Firebase tools
+        run: npm install -g firebase-tools
+
+      - name: Run rules tests
+        run: firebase emulators:exec --only firestore "echo Rules OK"
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

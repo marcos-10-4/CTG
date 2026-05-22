@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helpers
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function role() {
+      return request.auth.token.role;
+    }
+    function isAdmin() {
+      return isAuthenticated() && role() == 'admin';
+    }
+    function isCoach() {
+      return isAuthenticated() && (role() == 'entrenador' || role() == 'admin');
+    }
+    function isSocio() {
+      return isAuthenticated();
+    }
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Users
+    match /users/{uid} {
+      allow read: if isSocio();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+    }
+
+    // Posts (feed)
+    match /posts/{postId} {
+      allow read: if isSocio();
+      allow create, update, delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if isSocio();
+        allow create: if isSocio();
+        allow update, delete: if isOwner(resource.data.authorId) || isAdmin();
+      }
+
+      match /likes/{uid} {
+        allow read: if isSocio();
+        allow write: if isOwner(uid);
+      }
+    }
+
+    // Events
+    match /events/{eventId} {
+      allow read: if isSocio();
+      allow create, update, delete: if isAdmin();
+
+      match /registrations/{uid} {
+        allow read: if isSocio();
+        // Writes go through Cloud Functions only
+        allow write: if false;
+      }
+    }
+
+    // Rankings
+    match /rankings/{userId} {
+      allow read: if isSocio();
+      // Written by Cloud Functions only
+      allow write: if false;
+
+      match /history/{matchId} {
+        allow read: if isSocio();
+        allow write: if false;
+      }
+    }
+
+    // Trainings
+    match /trainings/{sessionId} {
+      allow read: if isSocio();
+      allow create, update: if isCoach();
+      allow delete: if isAdmin();
+
+      match /attendees/{uid} {
+        allow read: if isSocio();
+        allow write: if isCoach();
+      }
+    }
+
+    // Payments
+    match /payments/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
+
+      match /records/{recordId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+  }
+}
