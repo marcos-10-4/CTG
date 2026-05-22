@@ -114,6 +114,8 @@ class FirebaseAuthDatasource {
     }
     final doc = await ref.get();
 
+    final data = doc.data();
+
     // Role from custom claims (set by Cloud Functions) or Firestore fallback
     final idTokenResult = await user.getIdTokenResult(true);
     final claimRole = idTokenResult.claims?['role'] as String?;
@@ -125,8 +127,6 @@ class FirebaseAuthDatasource {
       'entrenador' => UserRole.entrenador,
       _ => UserRole.socio,
     };
-
-    final data = doc.data();
     return AppUser(
       id: user.uid,
       displayName: data?['displayName'] as String? ??

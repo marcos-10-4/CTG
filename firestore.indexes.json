@@ -1,4 +1,4 @@
-﻿{
+{
   "indexes": [
     {
       "collectionGroup": "posts",
@@ -13,6 +13,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "kind", "order": "ASCENDING" },
+        { "fieldPath": "pinned", "order": "DESCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -20,8 +21,8 @@
       "collectionGroup": "events",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "startsAt", "order": "ASCENDING" },
-        { "fieldPath": "kind", "order": "ASCENDING" }
+        { "fieldPath": "kind", "order": "ASCENDING" },
+        { "fieldPath": "startsAt", "order": "ASCENDING" }
       ]
     },
     {

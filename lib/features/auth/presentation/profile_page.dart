@@ -198,7 +198,7 @@ class _StatsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Transform.translate(
-      offset: const Offset(0, -28),
+      offset: const Offset(0, -8),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.all(20),

@@ -75,8 +75,8 @@ class EventsPage extends ConsumerWidget {
             loading: () => const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (e, _) => SliverFillRemaining(
-              child: Center(child: Text(e.toString())),
+            error: (e, _) => const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
             ),
             data: (events) {
               if (events.isEmpty) {
